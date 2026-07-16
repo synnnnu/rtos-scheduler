@@ -27,6 +27,20 @@ void registerTask(string name, void (*func)(), int priority) {
     cout << "[등록] " << name << " (우선순위: " << priority << ")" << endl;
 }
 
+// 등록된 Task를 순서대로 하나씩 실행하는 함수
+void runScheduler() {
+    cout << "\n--- 스케줄러 실행 시작 ---\n" << endl;
+
+    for (Task& t : taskList) {          // & <- 원본을 수정해야 하니까 참조로 받음
+        cout << "[실행] " << t.name << endl;
+        t.func();                       // 저장해둔 함수 포인터 호출
+        t.isDone = true;                // 실행 완료 표시
+    }
+
+        cout << "\n--- 모든 Task 실행 완료 ---" << endl;
+}
+
+
 // 테스트용 더미 함수들 (실제 Task가 할 일이라고 가정)
 void taskA() { cout << ">> Task A 실행 중..." << endl; }
 void taskB() { cout << ">> Task B 실행 중..." << endl; }
@@ -38,17 +52,12 @@ int main() {
     registerTask("EmergencyStop", taskB, 0);
     registerTask("LogWriter", taskC, 5);    
 
-    cout << "\n--- 우선순위 순으로 정렬 ---\n" << endl;
-
     // 우선순위 기준으로 정렬 (숫자 작을수록 앞으로)
     sort(taskList.begin(), taskList.end(), [](const Task& a, const Task& b) {
         return a.priority < b.priority;
     });
 
-    // 정렬된 순서대로 출력
-    for (const Task& t : taskList) {
-        cout << t.name << " (우선순위: " << t.priority << ")" << endl;
-    }
-
+    runScheduler();   // 정렬 후 실제로 실행
+    
     return 0;
 }
