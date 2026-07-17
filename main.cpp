@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <climits>
 
 using namespace std;
 
@@ -47,6 +48,13 @@ bool allDone() {
     return true;
 }
 
+int minPriorityAmongReady() {
+    int minP = INT_MAX;  // 일단 아주 큰 값으로 시작 (아직 아무것도 못 찾은 상태)
+    for (const Task& t : taskList)
+        if (t.remainingTicks > 0 && t.priority < minP) minP = t.priority;
+    return minP;
+}
+
 // 이번 tick에 실행할 Task를 하나 골라서 인덱스를 반환하는 함수
 // 매 tick마다: 아직 안 끝난 것 중 최고 우선순위 찾고, 동점이면 rrPointer부터 라운드로빈
 int findNext() {
@@ -69,33 +77,48 @@ int findNext() {
     return -1;
 }
 
+const int TIME_SLICE = 2;  // 한 번 뽑히면 최대 몇 tick 동안 계속 실행할지 (원하는 값으로 조절 가능)
+
 // 등록된 Task를 순서대로 하나씩 실행하는 함수
 void runScheduler() {
     cout << "\n--- 스케줄러 실행 시작 ---\n" << endl;
     int tick = 0;
 
     while (!allDone()) {
-        tick++;
         int idx = findNext(); // 이번 tick에 누굴 실행할지 결정
+        int sliceUsed = 0;   // runFor 대신 이 변수로 "지금까지 몇 tick 썼는지" 추적
 
-        cout << "[tick " << tick << "] 실행: " << taskList[idx].name
-             << " (남은 tick: " << taskList[idx].remainingTicks
-             << " -> " << taskList[idx].remainingTicks - 1 << ")" << endl;
+        // 딱 "한 tick 분량"만 실행 (전체를 다 끝내는 게 아니라 TIME_SLICE만큼만 진행)
+        while (sliceUsed < TIME_SLICE && taskList[idx].remainingTicks > 0) {
+            tick++;
+            cout << "[tick " << tick << "] 실행: " << taskList[idx].name
+                 << " (남은 tick: " << taskList[idx].remainingTicks
+                 << " -> " << taskList[idx].remainingTicks - 1 << ")" << endl;
 
-        // 딱 "한 tick 분량"만 실행 (전체를 다 끝내는 게 아니라 1만큼만 진행)
-        taskList[idx].func();
-        taskList[idx].remainingTicks--;
+            taskList[idx].func();
+            taskList[idx].remainingTicks--;
+            sliceUsed++;
+
+            // 시연용: EmergencyStop이 1 tick만 처리된 시점에 더 급한 이벤트 발생
+            if (taskList[idx].name == "EmergencyStop" && taskList[idx].remainingTicks == 2) {
+                cout << "\n[!] 실행 도중 긴급 이벤트 발생 - 새 Task 등록\n" << endl;
+                registerTask("FireDetected", taskUrgent, -1, 2);
+            }
+
+            // 새로 추가된 선점 체크
+            if (taskList[idx].remainingTicks > 0) {
+                int currentMin = minPriorityAmongReady();
+                if (currentMin < taskList[idx].priority) {
+                    cout << "[선점!] 더 급한 Task 발견 - 슬라이스 조기 종료\n" << endl;
+                    break;
+                }
+            }
+        }
 
         // 라운드로빈 포인터 갱신
         // 다음번엔 방금 실행한 애 바로 다음 자리부터 찾으라고 기억해둠
         // 이게 없으면 매번 findNext()가 인덱스 0부터 찾아서, 앞쪽 Task만 계속 유리해짐
         rrPointer = (idx + 1) % taskList.size();
-
-        // 시연용: EmergencyStop이 1 tick만 처리된 시점에 더 급한 이벤트 발생
-        if (taskList[idx].name == "EmergencyStop" && taskList[idx].remainingTicks == 2) {
-            cout << "\n[!] 실행 도중 긴급 이벤트 발생 - 새 Task 등록 (선점 예상)\n" << endl;
-            registerTask("FireDetected", taskUrgent, -1, 2);
-        }
     }
 
     cout << "\n--- 모든 Task 완료 (총 " << tick << " tick 소요) ---" << endl;
