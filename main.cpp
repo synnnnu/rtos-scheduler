@@ -27,24 +27,49 @@ void registerTask(string name, void (*func)(), int priority) {
     cout << "[등록] " << name << " (우선순위: " << priority << ")" << endl;
 }
 
-// 등록된 Task를 순서대로 하나씩 실행하는 함수
-void runScheduler() {
-    cout << "\n--- 스케줄러 실행 시작 ---\n" << endl;
-
-    for (Task& t : taskList) {          // & <- 원본을 수정해야 하니까 참조로 받음
-        cout << "[실행] " << t.name << endl;
-        t.func();                       // 저장해둔 함수 포인터 호출
-        t.isDone = true;                // 실행 완료 표시
-    }
-
-        cout << "\n--- 모든 Task 실행 완료 ---" << endl;
-}
-
-
 // 테스트용 더미 함수들 (실제 Task가 할 일이라고 가정)
 void taskA() { cout << ">> Task A 실행 중..." << endl; }
 void taskB() { cout << ">> Task B 실행 중..." << endl; }
 void taskC() { cout << ">> Task C 실행 중..." << endl; }
+void taskUrgent() { cout << ">> Task Urgent: 화재 감지! 즉시 대응 중..." << endl; }
+
+// 아직 안 끝난 Task가 하나라도 있는지 확인
+bool allDone() {
+    for (const Task& t : taskList) {
+        if (!t.isDone) return false;
+    }
+    return true;
+}
+
+// 등록된 Task를 순서대로 하나씩 실행하는 함수
+void runScheduler() {
+    cout << "\n--- 스케줄러 실행 시작 ---\n" << endl;
+
+    while (!allDone()) {
+        // 매번 아직 안 끝난 것들 중 우선순위(숫자 작은 것)가 가장 높은 걸 찾음
+        int bestIdx = -1;
+
+        for(int i = 0; i < taskList.size(); i++) {
+            if(!taskList[i].isDone) {
+                if (bestIdx == -1 || taskList[i].priority < taskList[bestIdx].priority) {
+                    bestIdx = i;
+                }
+            }
+        }
+
+        cout << "[실행] " << taskList[bestIdx].name << endl;
+        taskList[bestIdx].func();
+        taskList[bestIdx].isDone = true;
+
+        // EmergencyStop 처리 직후, 그보다 더 급한 상황이 새로 발생했다고 가정
+        if (taskList[bestIdx].name == "EmergencyStop") {
+            cout << "\n[!] 실행 도중 긴급 이벤트 발생 - 새 Task 등록\n" << endl;
+            registerTask("FireDetected", taskUrgent, -1);
+        }
+    }
+
+    cout << "\n--- 모든 Task 실행 완료 ---" << endl;
+}
 
 int main() {
 
@@ -52,12 +77,8 @@ int main() {
     registerTask("EmergencyStop", taskB, 0);
     registerTask("LogWriter", taskC, 5);    
 
-    // 우선순위 기준으로 정렬 (숫자 작을수록 앞으로)
-    sort(taskList.begin(), taskList.end(), [](const Task& a, const Task& b) {
-        return a.priority < b.priority;
-    });
-
-    runScheduler();   // 정렬 후 실제로 실행
+    // 이제 sort()를 미리 호출할 필요가 없음 — 스케줄러가 매번 알아서 최고 우선순위를 찾음
+    runScheduler();
     
     return 0;
 }
