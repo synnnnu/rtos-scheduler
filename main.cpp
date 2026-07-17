@@ -59,9 +59,7 @@ int minPriorityAmongReady() {
 // 매 tick마다: 아직 안 끝난 것 중 최고 우선순위 찾고, 동점이면 rrPointer부터 라운드로빈
 int findNext() {
     // 아직 안 끝난 Task들 중 가장 급한 우선순위 값이 뭔지 찾기 
-    int minPriority = 1e9; // 일단 아주 큰 값으로 시작
-    for (const Task& t : taskList)
-        if (t.remainingTicks > 0 && t.priority < minPriority) minPriority = t.priority;
+    int minPriority = minPriorityAmongReady();
 
     // 그 등급(minPriority)을 가진 후보들 중에서, 라운드로빈 순서로 하나 고르기
     int n = taskList.size();
